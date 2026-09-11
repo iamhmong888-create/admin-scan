@@ -298,6 +298,10 @@ function showToast(text){
 /* ---------------- Login ---------------- */
 let currentUserName = "";
 let currentUserDocRef = null;
+/* เก็บชื่อที่เพิ่งพิมพ์ตอนกดปุ่มเข้าสู่ระบบไว้ชั่วคราว ให้ onAuthStateChanged
+   เอาไปใช้สร้างโปรไฟล์ Firestore ได้ (เผื่อกรณีบัญชีนี้มีตัวตนใน Firebase
+   Authentication อยู่แล้วแต่ document โปรไฟล์หายไปหรือไม่เคยถูกสร้างเลย) */
+let pendingLoginName = null;
 
 async function doLogin(){
   const name = document.getElementById('loginName').value.trim();
@@ -316,19 +320,13 @@ async function doLogin(){
   btn.textContent = "กำลังเข้าสู่ระบบ...";
 
   const email = nameToEmail(name);
+  pendingLoginName = name;
   try{
     try{
-      const cred = await auth.createUserWithEmailAndPassword(email, pass);
-      /* บัญชีนี้ยังไม่เคยมีมาก่อน - สร้างใหม่สำเร็จ ต้องสร้าง "โปรไฟล์" ใน
-         Firestore ไว้ด้วย (เดิมลืมส่วนนี้ไป) ไม่งั้นจะไม่มี document ให้ครู
-         ไปเพิ่ม role:"admin" ทีหลังเลย - role ปล่อยว่างไว้ก่อนโดยตั้งใจ ต้องไป
-         เพิ่มเองผ่าน Firebase Console เพื่อความปลอดภัย ไม่ให้ใครก็ได้ที่เข้ามา
-         หน้านี้ตั้งตัวเองเป็นแอดมินได้ทันที */
-      await db.collection('users').doc(cred.user.uid).set({
-        name: name,
-        role: null,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge:true });
+      await auth.createUserWithEmailAndPassword(email, pass);
+      /* บัญชีนี้ยังไม่เคยมีมาก่อน - สร้างใหม่สำเร็จ (การสร้าง "โปรไฟล์" ใน
+         Firestore ให้ onAuthStateChanged ด้านล่างจัดการทีเดียวที่เดียว - ดูเหตุผล
+         ที่คอมเมนต์ตรงนั้น) */
     }catch(err){
       if(err.code === 'auth/email-already-in-use'){
         /* กรณีปกติ: มีบัญชีนี้อยู่แล้ว -> เข้าสู่ระบบด้วยรหัสผ่านที่กรอกจริง ๆ
@@ -347,6 +345,10 @@ async function doLogin(){
       msg = "รหัสผ่านไม่ตรงกับบัญชีนี้ กรุณาตรวจสอบรหัสผ่าน";
     } else if(err.code === 'auth/weak-password'){
       msg = "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
+    } else if(!err.code && err.message){
+      /* err ที่ไม่มี .code คือ Error ที่เราโยนขึ้นมาเองพร้อมข้อความอธิบายแล้ว
+         (เช่นกรณีบันทึกโปรไฟล์ไม่สำเร็จ) ใช้ข้อความนั้นตรง ๆ เพราะชัดเจนกว่า */
+      msg = err.message;
     }
     errorEl.textContent = msg;
     errorEl.style.display = "block";
@@ -373,7 +375,35 @@ auth.onAuthStateChanged(async (user)=>{
 
   try{
     currentUserDocRef = db.collection('users').doc(user.uid);
-    const snap = await currentUserDocRef.get();
+    let snap = await currentUserDocRef.get();
+
+    if(!snap.exists){
+      /* บัญชีนี้มีตัวตนใน Firebase Authentication แล้ว แต่ยังไม่มี document
+         โปรไฟล์ใน Firestore เลย (เช่น สมัครผ่านหน้านี้ตอนที่ยังมีบั๊กเก่า หรือ
+         สมัครผ่านหน้านี้เป็นครั้งแรก) - สร้างให้ตอนนี้เลย ให้ shape เดียวกับที่
+         index.html สร้าง เพื่อให้ผ่าน Firestore Security Rules ชุดเดียวกัน
+         role ปล่อยเป็น null ไว้ก่อนโดยตั้งใจ ต้องไปเพิ่มเองผ่าน Firebase
+         Console เพื่อความปลอดภัย ไม่ให้ใครก็ได้ที่เข้ามาหน้านี้ตั้งตัวเองเป็น
+         แอดมินได้ทันที */
+      try{
+        await currentUserDocRef.set({
+          name: pendingLoginName || user.email,
+          totalPoints: 0,
+          progress: {},
+          role: null,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        snap = await currentUserDocRef.get();
+      }catch(profileErr){
+        console.warn("create profile error:", profileErr);
+        const errorEl = document.getElementById('loginError');
+        errorEl.textContent = "สร้างบัญชีสำเร็จ แต่บันทึกโปรไฟล์ไม่สำเร็จ (Firestore ปฏิเสธ: " + (profileErr.code || profileErr.message) + ") กรุณาแจ้งผู้พัฒนาระบบ";
+        errorEl.style.display = "block";
+        await auth.signOut();
+        return;
+      }
+    }
+
     const data = snap.exists ? snap.data() : null;
 
     if(!data || data.role !== "admin"){
