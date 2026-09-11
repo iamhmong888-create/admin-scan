@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ออก QR Code แลกรางวัล - แผงควบคุมแอดมิน</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #EDF3E8;
+    --paper-deep: #DCE7D3;
+    --wood-dark: #1E3327;
+    --wood: #35513E;
+    --wood-light: #4E7059;
+    --ink: #24301F;
+    --ink-soft: #58694E;
+    --cream: #F4ECD8;
+    --brass: #B4903F;
+    --brass-bright: #E0B563;
+  }
+  *{ box-sizing:border-box; }
+  html,body{
+    margin:0; padding:0;
+    background:var(--paper);
+    font-family:'Sarabun', sans-serif;
+    color:var(--ink);
+  }
+
+  /* ---------- Login screen (เหมือนหน้าอ่านหนังสือ - ใช้บัญชีแอดมินเดียวกัน) ---------- */
+  #loginScreen{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    background:
+      radial-gradient(ellipse at top, rgba(180,144,63,0.16), transparent 60%),
+      var(--paper);
+  }
+  .login-wrap{ width:100%; max-width:380px; display:flex; flex-direction:column; align-items:center; }
+  .brand-block{ display:flex; flex-direction:column; align-items:center; gap:10px; margin-bottom:22px; text-align:center; }
+  .brand-block .brand-name{ font-weight:600; font-size:15.5px; color:var(--ink); line-height:1.5; }
+  .login-card{
+    width:100%; max-width:380px;
+    background:rgba(255,255,255,0.4);
+    border:1px solid rgba(42,29,18,0.18);
+    border-radius:6px;
+    padding:40px 32px 34px;
+    text-align:center;
+    box-shadow:0 20px 50px rgba(0,0,0,0.15);
+  }
+  .login-card .eyebrow-line{ width:44px; height:2px; background:var(--brass); margin:0 auto 16px; }
+  .login-card h1{ font-weight:600; font-size:23px; margin:0 0 8px; }
+  .login-card p.sub{ font-size:13px; color:var(--ink-soft); margin:0 0 26px; line-height:1.6; }
+  .field{ text-align:left; margin-bottom:16px; }
+  .field label{ display:block; font-size:12.5px; font-weight:600; color:var(--ink-soft); margin-bottom:6px; }
+  .field input{
+    width:100%; padding:11px 13px;
+    border:1px solid rgba(42,29,18,0.3);
+    border-radius:4px;
+    background:rgba(255,255,255,0.6);
+    font-family:'Sarabun', sans-serif;
+    font-size:14.5px;
+    color:var(--ink);
+  }
+  .field input:focus{ outline:none; border-color:var(--brass); background:#fff; }
+  .login-error{ font-size:12.5px; color:#A3372A; margin:-6px 0 14px; text-align:left; display:none; }
+  .btn{
+    display:inline-block; width:100%;
+    padding:13px 20px;
+    background:var(--ink); color:var(--cream);
+    border:none; border-radius:4px;
+    font-family:'Sarabun', sans-serif;
+    font-size:15px; font-weight:600;
+    cursor:pointer;
+    transition:background 0.15s ease, transform 0.1s ease;
+  }
+  .btn:hover{ background:var(--wood-light); }
+  .btn:active{ transform:scale(0.98); }
+  .btn:disabled{ opacity:0.4; cursor:not-allowed; }
+  .login-footer{ margin-top:22px; text-align:center; font-size:12px; line-height:1.8; color:var(--ink-soft); }
+  .login-footer .org-line{ font-weight:600; color:var(--ink); font-size:12.5px; margin-bottom:2px; }
+
+  /* ---------- Admin QR page ---------- */
+  #adminApp{ display:none; }
+  header{
+    padding:36px 24px 28px;
+    text-align:center;
+    background:var(--wood-dark);
+    color:var(--cream);
+  }
+  header .eyebrow-line{ width:52px; height:2px; background:var(--brass); margin:0 auto 14px; }
+  header h1{ font-weight:600; font-size:clamp(22px, 4.5vw, 30px); margin:0 0 8px; }
+  header p.sub{ font-size:13.5px; color:rgba(244,236,216,0.75); margin:0 0 16px; max-width:440px; margin-left:auto; margin-right:auto; line-height:1.7; }
+  .greeting{ font-size:13px; color:rgba(244,236,216,0.65); }
+  .greeting .logout-link{ color:var(--brass-bright); text-decoration:underline; cursor:pointer; margin-left:8px; }
+
+  .page{ max-width:640px; margin:0 auto; padding:36px 24px 60px; }
+
+  .admin-qr-wrap{
+    background:rgba(255,255,255,0.5);
+    border:1px solid rgba(42,29,18,0.15);
+    border-radius:10px;
+    padding:26px 22px;
+  }
+  .admin-qr-wrap h2{ font-size:18px; margin:0 0 8px; color:var(--wood-dark); }
+  .admin-qr-desc{ font-size:12.5px; color:var(--ink-soft); margin:0 0 22px; line-height:1.7; }
+  .admin-qr-body{ display:flex; gap:30px; flex-wrap:wrap; justify-content:center; }
+  .admin-qr-left{ flex:1 1 260px; display:flex; flex-direction:column; align-items:center; gap:14px; }
+  .admin-qr-display{
+    font-size:42px; font-weight:700; color:var(--wood-dark);
+    background:rgba(180,144,63,0.12);
+    border:1px solid rgba(180,144,63,0.4);
+    border-radius:8px;
+    width:100%; max-width:220px; text-align:center;
+    padding:10px 0; letter-spacing:1px;
+  }
+  .admin-qr-presets{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+  .qr-preset-btn{
+    padding:8px 16px; border-radius:999px;
+    border:1px solid rgba(42,29,18,0.3);
+    background:rgba(255,255,255,0.7);
+    font-family:'Sarabun', sans-serif;
+    font-size:13px; font-weight:600;
+    color:var(--ink); cursor:pointer;
+  }
+  .qr-preset-btn:hover{ background:#fff; }
+  .admin-qr-keypad{ display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; width:100%; max-width:220px; }
+  .admin-qr-keypad button{
+    padding:16px 0; border-radius:6px;
+    border:1px solid rgba(42,29,18,0.25);
+    background:rgba(255,255,255,0.7);
+    font-family:'Sarabun', sans-serif;
+    font-size:17px; font-weight:600;
+    color:var(--ink); cursor:pointer;
+  }
+  .admin-qr-keypad button:hover{ background:#fff; }
+  .admin-qr-left .btn{ width:100%; max-width:220px; }
+  .admin-qr-right{ flex:1 1 220px; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:12px; }
+  .admin-qr-code-box{
+    width:220px; height:220px;
+    display:flex; align-items:center; justify-content:center;
+    background:#fff;
+    border:1px solid rgba(42,29,18,0.15);
+    border-radius:8px;
+    padding:10px;
+  }
+  .admin-qr-placeholder{ font-size:12.5px; color:var(--ink-soft); text-align:center; padding:0 10px; }
+  .admin-qr-code-hint{ font-size:11.5px; color:var(--ink-soft); text-align:center; letter-spacing:0.5px; }
+  .qr-status{ font-size:13px; font-weight:600; color:var(--ink-soft); text-align:center; }
+  .qr-status.waiting{ color:var(--brass); }
+  .qr-status.used{ color:#1F6E5C; }
+
+  .points-toast{
+    position:fixed; left:50%; bottom:26px;
+    transform:translateX(-50%) translateY(20px);
+    background:var(--wood-dark); color:var(--cream);
+    padding:12px 20px; border-radius:999px;
+    font-size:13.5px; font-weight:600;
+    opacity:0; pointer-events:none;
+    transition:opacity 0.25s ease, transform 0.25s ease;
+    box-shadow:0 10px 30px rgba(0,0,0,0.25);
+    z-index:50;
+  }
+  .points-toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  .site-footer{ max-width:640px; margin:0 auto; padding:20px 24px 40px; text-align:center; border-top:1px solid rgba(36,48,31,0.14); font-size:12px; line-height:1.9; color:var(--ink-soft); }
+  .site-footer .org-line{ font-weight:600; color:var(--ink); }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-wrap">
+    <div class="brand-block">
+      <div class="brand-name">ศูนย์ส่งเสริมการเรียนรู้ระดับอำเภอเทิง</div>
+    </div>
+    <div class="login-card">
+      <div class="eyebrow-line"></div>
+      <h1>แผงควบคุมแอดมิน</h1>
+      <p class="sub">ออก QR Code สำหรับแลกรางวัล<br>เข้าสู่ระบบด้วยบัญชีแอดมินเดียวกับหน้าห้องสมุด</p>
+      <div class="field">
+        <label for="loginName">ชื่อผู้ใช้</label>
+        <input type="text" id="loginName" placeholder="ชื่อบัญชีแอดมิน" autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="loginPass">รหัสผ่าน</label>
+        <input type="password" id="loginPass" placeholder="รหัสผ่าน" autocomplete="current-password">
+      </div>
+      <p class="login-error" id="loginError">เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบชื่อผู้ใช้และรหัสผ่าน</p>
+      <button class="btn" id="loginBtn">เข้าสู่ระบบ</button>
+    </div>
+    <div class="login-footer">
+      <div class="org-line">ศูนย์ส่งเสริมการเรียนรู้ระดับอำเภอเทิง</div>
+      <div>หน้านี้สำหรับแอดมินเท่านั้น - นักอ่านทั่วไปให้ใช้ไฟล์ index.html</div>
+    </div>
+  </div>
+</div>
+
+<div id="adminApp">
+  <header>
+    <div class="eyebrow-line"></div>
+    <h1>🎁 ออก QR Code แลกรางวัล</h1>
+    <p class="sub">กดตัวเลขจำนวนแต้ม แล้วให้นักอ่านสแกน QR ด้วยมือถือของตัวเอง ระบบจะตัดแต้มให้อัตโนมัติทันทีที่สแกนสำเร็จ</p>
+    <div class="greeting" id="greetingText"></div>
+  </header>
+
+  <div class="page">
+    <div class="admin-qr-wrap">
+      <h2>กดจำนวนแต้ม แล้วสร้าง QR Code</h2>
+      <p class="admin-qr-desc">กดตัวเลข หรือกดปุ่มลัด 100 / 200 / 300 เพื่อกำหนดจำนวนแต้มที่นักอ่านจะใช้แลกรางวัลชิ้นนี้ แล้วกด "สร้าง QR Code" เพื่อแสดงให้นักอ่านสแกน — QR Code แต่ละใบใช้แลกได้เพียงครั้งเดียวเท่านั้น และจะขึ้นสถานะ "ถูกใช้แล้ว" ที่นี่ทันทีที่มีคนสแกนสำเร็จ</p>
+      <div class="admin-qr-body">
+        <div class="admin-qr-left">
+          <div class="admin-qr-display" id="adminQrPointsDisplay">0</div>
+          <div class="admin-qr-presets">
+            <button type="button" class="qr-preset-btn" data-points="100">100 แต้ม</button>
+            <button type="button" class="qr-preset-btn" data-points="200">200 แต้ม</button>
+            <button type="button" class="qr-preset-btn" data-points="300">300 แต้ม</button>
+          </div>
+          <div class="admin-qr-keypad" id="adminQrKeypad">
+            <button type="button" data-digit="1">1</button>
+            <button type="button" data-digit="2">2</button>
+            <button type="button" data-digit="3">3</button>
+            <button type="button" data-digit="4">4</button>
+            <button type="button" data-digit="5">5</button>
+            <button type="button" data-digit="6">6</button>
+            <button type="button" data-digit="7">7</button>
+            <button type="button" data-digit="8">8</button>
+            <button type="button" data-digit="9">9</button>
+            <button type="button" data-action="clear">ล้าง</button>
+            <button type="button" data-digit="0">0</button>
+            <button type="button" data-action="back">⌫</button>
+          </div>
+          <button class="btn" id="adminGenerateQrBtn" type="button">สร้าง QR Code</button>
+        </div>
+        <div class="admin-qr-right">
+          <div class="admin-qr-code-box" id="adminQrCodeBox">
+            <div class="admin-qr-placeholder">ยังไม่ได้สร้าง QR Code</div>
+          </div>
+          <div class="admin-qr-code-hint" id="adminQrCodeHint"></div>
+          <p class="qr-status" id="qrStatusText"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="org-line">ศูนย์ส่งเสริมการเรียนรู้ระดับอำเภอเทิง</div>
+    <div>สร้างสรรค์โดย นายวนศาสตร์ วัฒนาสกุลลี ครู สกร.ระดับอำเภอเทิง</div>
+  </footer>
+</div>
+
+<div class="points-toast" id="pointsToast"></div>
+
+<!-- Firebase (compat build - โปรเจกต์เดียวกับ index.html) -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<!-- qrcodejs - สร้างภาพ QR Code -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<script>
+/* ===================================================================
+   CONFIG - Firebase backend (ต้องเป็นโปรเจกต์เดียวกับไฟล์ index.html
+   เพราะต้องเขียน/อ่าน Firestore ชุดเดียวกัน - users, redeemCodes)
+=================================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyBkju0vdLKy_uS2qGDUH_-dCrnMn8Hp7u8",
+  authDomain: "reading-of-reward.firebaseapp.com",
+  projectId: "reading-of-reward",
+  storageBucket: "reading-of-reward.firebasestorage.app",
+  messagingSenderId: "985819630807",
+  appId: "1:985819630807:web:525e1fe75b8086501c3492"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+/* ต้องตรงกับฟังก์ชันเดียวกันในไฟล์ index.html เป๊ะ ๆ ไม่เช่นนั้นชื่อบัญชี
+   เดียวกันจะแปลงเป็นอีเมลคนละอันและล็อกอินไม่ผ่าน */
+function nameToEmail(name){
+  const clean = name.trim().toLowerCase().replace(/[^a-z0-9ก-๙]+/g, "");
+  let hash = 0;
+  for(let i=0;i<name.length;i++){ hash = (hash*31 + name.charCodeAt(i)) >>> 0; }
+  return `${encodeURIComponent(clean || "reader")}-${hash.toString(36)}@readapp.local`;
+}
+
+function showToast(text){
+  const toast = document.getElementById('pointsToast');
+  toast.textContent = text;
+  toast.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(()=> toast.classList.remove('show'), 2200);
+}
+
+/* ---------------- Login ---------------- */
+let currentUserName = "";
+let currentUserDocRef = null;
+
+async function doLogin(){
+  const name = document.getElementById('loginName').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const errorEl = document.getElementById('loginError');
+  errorEl.style.display = "none";
+
+  if(!name || !pass){
+    errorEl.textContent = "กรุณากรอกชื่อผู้ใช้และรหัสผ่าน";
+    errorEl.style.display = "block";
+    return;
+  }
+
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true;
+  btn.textContent = "กำลังเข้าสู่ระบบ...";
+
+  try{
+    const email = nameToEmail(name);
+    await auth.signInWithEmailAndPassword(email, pass);
+    /* onAuthStateChanged ด้านล่างจะรับช่วงต่อเอง: เช็ค role และเปิดหน้า admin */
+  }catch(err){
+    console.warn("login error:", err);
+    errorEl.textContent = "เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบชื่อผู้ใช้และรหัสผ่าน";
+    errorEl.style.display = "block";
+  }
+
+  btn.disabled = false;
+  btn.textContent = "เข้าสู่ระบบ";
+}
+
+document.getElementById('loginBtn').addEventListener('click', doLogin);
+document.getElementById('loginPass').addEventListener('keydown', (e)=>{ if(e.key === "Enter") doLogin(); });
+document.getElementById('loginName').addEventListener('keydown', (e)=>{ if(e.key === "Enter") doLogin(); });
+
+function logoutUser(){
+  auth.signOut();
+}
+
+auth.onAuthStateChanged(async (user)=>{
+  if(!user){
+    document.getElementById('loginScreen').style.display = "flex";
+    document.getElementById('adminApp').style.display = "none";
+    return;
+  }
+
+  try{
+    currentUserDocRef = db.collection('users').doc(user.uid);
+    const snap = await currentUserDocRef.get();
+    const data = snap.exists ? snap.data() : null;
+
+    if(!data || data.role !== "admin"){
+      /* บัญชีนี้ไม่ใช่แอดมิน (หรือยังไม่เคยล็อกอินในไฟล์ index.html เลยไม่มี
+         โปรไฟล์ใน Firestore) - ดีดออกจากระบบทันทีเพื่อความปลอดภัย */
+      const errorEl = document.getElementById('loginError');
+      errorEl.textContent = "บัญชีนี้ไม่มีสิทธิ์ผู้ดูแลระบบ กรุณาใช้บัญชีแอดมินที่ตั้งค่า role เป็น admin ไว้ใน Firestore";
+      errorEl.style.display = "block";
+      await auth.signOut();
+      return;
+    }
+
+    currentUserName = data.name || "แอดมิน";
+    document.getElementById('loginScreen').style.display = "none";
+    document.getElementById('adminApp').style.display = "block";
+    document.getElementById('greetingText').innerHTML =
+      `เข้าสู่ระบบในฐานะผู้ดูแลระบบ <strong>${currentUserName}</strong> <span class="logout-link" onclick="logoutUser()">ออกจากระบบ</span>`;
+  }catch(err){
+    console.warn("auth state check error:", err);
+    const errorEl = document.getElementById('loginError');
+    errorEl.textContent = "ตรวจสอบสิทธิ์ผู้ดูแลระบบไม่สำเร็จ กรุณาลองใหม่";
+    errorEl.style.display = "block";
+    await auth.signOut();
+  }
+});
+
+/* ===================================================================
+   ออก QR Code สำหรับแลกรางวัล
+   แอดมินกดตัวเลขจำนวนแต้ม (หรือกดปุ่มลัด 100/200/300) แล้วกด "สร้าง QR Code"
+   ระบบจะสุ่มรหัสสั้น ๆ เขียนลง Firestore ที่ collection "redeemCodes" พร้อม
+   จำนวนแต้มและสถานะ used:false จากนั้นแสดงรหัสนั้นเป็นภาพ QR ให้นักอ่านสแกน
+   ด้วยกล้องของตัวเองในไฟล์ index.html (ปุ่ม "สแกน QR Code เพื่อแลกรางวัล"
+   ในหน้าแลกแต้ม) แล้วคอยฟัง (onSnapshot) สถานะของรหัสนั้นแบบเรียลไทม์เพื่อขึ้น
+   ข้อความ "ถูกใช้แล้ว" ให้แอดมินเห็นทันทีที่สแกนสำเร็จ
+=================================================================== */
+let adminQrPoints = "";
+let adminQrUnsub = null;
+
+function renderAdminQrPointsDisplay(){
+  document.getElementById('adminQrPointsDisplay').textContent = adminQrPoints || "0";
+}
+
+document.getElementById('adminQrKeypad').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  if(btn.dataset.digit !== undefined){
+    if(adminQrPoints.length >= 5) return;
+    adminQrPoints = (adminQrPoints === "0" ? "" : adminQrPoints) + btn.dataset.digit;
+  } else if(btn.dataset.action === "clear"){
+    adminQrPoints = "";
+  } else if(btn.dataset.action === "back"){
+    adminQrPoints = adminQrPoints.slice(0, -1);
+  }
+  renderAdminQrPointsDisplay();
+});
+
+document.querySelectorAll('.qr-preset-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    adminQrPoints = btn.dataset.points;
+    renderAdminQrPointsDisplay();
+  });
+});
+
+/* ตัวอักษรที่ใช้สุ่มรหัสตัดตัวที่หน้าตาคล้ายกันออก (0/O, 1/I) กันอ่านผิด
+   เผื่อแอดมินต้องพิมพ์รหัสเองในกรณีกล้องนักอ่านอ่านไม่ได้ */
+function generateRedeemCodeString(len = 8){
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let out = "";
+  for(let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
+function watchRedeemCode(code){
+  if(adminQrUnsub){ adminQrUnsub(); adminQrUnsub = null; }
+  const statusEl = document.getElementById('qrStatusText');
+  statusEl.textContent = "🕓 รอนักอ่านสแกน...";
+  statusEl.className = "qr-status waiting";
+
+  adminQrUnsub = db.collection('redeemCodes').doc(code).onSnapshot(doc=>{
+    if(!doc.exists) return;
+    const d = doc.data();
+    if(d.used){
+      statusEl.textContent = `✅ ถูกใช้แลกรางวัลแล้ว โดย ${d.usedByName || "-"}`;
+      statusEl.className = "qr-status used";
+    } else {
+      statusEl.textContent = "🕓 รอนักอ่านสแกน...";
+      statusEl.className = "qr-status waiting";
+    }
+  }, err=>{
+    console.warn("watchRedeemCode error:", err);
+  });
+}
+
+document.getElementById('adminGenerateQrBtn').addEventListener('click', async ()=>{
+  const points = parseInt(adminQrPoints, 10);
+  if(!points || points <= 0){
+    showToast("กรุณากดตัวเลขจำนวนแต้มก่อนสร้าง QR Code");
+    return;
+  }
+
+  const btn = document.getElementById('adminGenerateQrBtn');
+  btn.disabled = true;
+  btn.textContent = "กำลังสร้าง...";
+
+  try{
+    const code = generateRedeemCodeString();
+    await db.collection('redeemCodes').doc(code).set({
+      points,
+      used:false,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdBy: currentUserName,
+      usedBy:null,
+      usedByName:null,
+      usedAt:null
+    });
+
+    const box = document.getElementById('adminQrCodeBox');
+    box.innerHTML = "";
+    if(typeof QRCode === "undefined"){
+      box.innerHTML = `<div class="admin-qr-placeholder">สร้างรหัสแล้ว (${code}) แต่โหลดไลบรารีวาด QR ไม่สำเร็จ กรุณารีเฟรชหน้านี้</div>`;
+    } else {
+      new QRCode(box, {
+        text: code,
+        width: 200,
+        height: 200,
+        colorDark: "#24301F",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    }
+    document.getElementById('adminQrCodeHint').textContent = `รหัส: ${code}`;
+
+    watchRedeemCode(code);
+    showToast(`สร้าง QR Code สำหรับ ${points} แต้มแล้ว`);
+
+    adminQrPoints = "";
+    renderAdminQrPointsDisplay();
+  }catch(err){
+    console.warn("generate QR error:", err);
+    showToast("สร้าง QR Code ไม่สำเร็จ กรุณาตรวจสอบสิทธิ์ Firestore แล้วลองใหม่");
+  }
+
+  btn.disabled = false;
+  btn.textContent = "สร้าง QR Code";
+});
+</script>
+</body>
+</html>
