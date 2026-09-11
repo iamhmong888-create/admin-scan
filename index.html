@@ -315,17 +315,18 @@ async function doLogin(){
   btn.disabled = true;
   btn.textContent = "กำลังเข้าสู่ระบบ...";
 
+  const email = nameToEmail(name);
   try{
-    const email = nameToEmail(name);
     try{
-      await auth.signInWithEmailAndPassword(email, pass);
+      await auth.createUserWithEmailAndPassword(email, pass);
+      /* บัญชีนี้ยังไม่เคยมีมาก่อน - สร้างใหม่สำเร็จ (role check ด้านล่างจะ
+         ดีดออกเองถ้าบัญชีนี้ไม่มี role:"admin") */
     }catch(err){
-      if(err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential'){
-        /* ยังไม่เคยมีบัญชีนี้เลย (ไม่ว่าจะยังไม่เคยล็อกอินผ่าน index.html มาก่อน
-           หรือพิมพ์ชื่อผิดจากที่เคยใช้) - สร้างบัญชีใหม่ให้เหมือนพฤติกรรมของ
-           index.html เพื่อไม่ให้งงว่าทำไมเข้าไม่ได้ แต่ถ้าบัญชีที่สร้างใหม่นี้ไม่มี
-           role:"admin" onAuthStateChanged ด้านล่างจะดีดออกอยู่ดี ปลอดภัย */
-        await auth.createUserWithEmailAndPassword(email, pass);
+      if(err.code === 'auth/email-already-in-use'){
+        /* กรณีปกติ: มีบัญชีนี้อยู่แล้ว (เคยล็อกอินผ่าน index.html มาก่อน)
+           -> เข้าสู่ระบบด้วยรหัสผ่านที่กรอกจริง ๆ error ที่ได้จากตรงนี้
+           (wrong-password / invalid-credential) จะแม่นยำ ไม่กำกวมเหมือนเดิม */
+        await auth.signInWithEmailAndPassword(email, pass);
       } else {
         throw err;
       }
@@ -336,6 +337,8 @@ async function doLogin(){
     let msg = "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่";
     if(err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential'){
       msg = "รหัสผ่านไม่ตรงกับบัญชีนี้ กรุณาตรวจสอบรหัสผ่าน (ต้องเป็นรหัสเดียวกับที่เคยใช้ล็อกอินหน้า index.html)";
+    } else if(err.code === 'auth/weak-password'){
+      msg = "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
     }
     errorEl.textContent = msg;
     errorEl.style.display = "block";
