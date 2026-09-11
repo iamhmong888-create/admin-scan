@@ -96,7 +96,7 @@
   .greeting{ font-size:13px; color:rgba(244,236,216,0.65); }
   .greeting .logout-link{ color:var(--brass-bright); text-decoration:underline; cursor:pointer; margin-left:8px; }
 
-  .page{ max-width:640px; margin:0 auto; padding:36px 24px 60px; }
+  .page{ max-width:900px; margin:0 auto; padding:36px 24px 60px; }
 
   .admin-qr-wrap{
     background:rgba(255,255,255,0.5);
@@ -165,8 +165,51 @@
   }
   .points-toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
 
-  .site-footer{ max-width:640px; margin:0 auto; padding:20px 24px 40px; text-align:center; border-top:1px solid rgba(36,48,31,0.14); font-size:12px; line-height:1.9; color:var(--ink-soft); }
+  .site-footer{ max-width:900px; margin:0 auto; padding:20px 24px 40px; text-align:center; border-top:1px solid rgba(36,48,31,0.14); font-size:12px; line-height:1.9; color:var(--ink-soft); }
   .site-footer .org-line{ font-weight:600; color:var(--ink); }
+
+  /* ---------- Admin: reader report ---------- */
+  .admin-report-wrap{
+    background:rgba(255,255,255,0.5);
+    border:1px solid rgba(42,29,18,0.15);
+    border-radius:10px;
+    padding:26px 22px;
+    margin-top:26px;
+  }
+  .admin-report-wrap h2{ font-size:18px; margin:0 0 8px; color:var(--wood-dark); }
+  .admin-report-desc{ font-size:12.5px; color:var(--ink-soft); margin:0 0 20px; line-height:1.7; }
+  .admin-summary{ display:flex; flex-wrap:wrap; gap:14px; margin-bottom:24px; }
+  .admin-stat{
+    flex:1 1 130px;
+    background:rgba(255,255,255,0.6);
+    border:1px solid rgba(42,29,18,0.15);
+    border-radius:6px;
+    padding:14px 16px;
+    text-align:center;
+  }
+  .admin-stat .num{ display:block; font-size:22px; font-weight:700; color:var(--wood-dark); }
+  .admin-stat .lbl{ font-size:11.5px; color:var(--ink-soft); }
+  .admin-toolbar{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:24px; }
+  .admin-toolbar .btn{ width:auto; }
+  .admin-table-wrap{ margin-bottom:30px; overflow-x:auto; }
+  .admin-table-wrap h3{ font-size:15px; margin:0 0 10px; color:var(--wood-dark); }
+  .admin-table{
+    width:100%; min-width:440px;
+    border-collapse:collapse;
+    background:rgba(255,255,255,0.7);
+    border-radius:6px;
+    overflow:hidden;
+    font-size:13px;
+  }
+  .admin-table th, .admin-table td{
+    padding:9px 12px;
+    text-align:left;
+    border-bottom:1px solid rgba(42,29,18,0.12);
+    white-space:nowrap;
+  }
+  .admin-table th{ background:var(--wood-dark); color:var(--cream); font-weight:600; font-size:11.5px; }
+  .admin-table tr:last-child td{ border-bottom:none; }
+  .admin-empty{ padding:16px; text-align:center; color:var(--ink-soft); font-size:12.5px; white-space:normal; }
 </style>
 </head>
 <body>
@@ -201,8 +244,8 @@
 <div id="adminApp">
   <header>
     <div class="eyebrow-line"></div>
-    <h1>🎁 ออก QR Code แลกรางวัล</h1>
-    <p class="sub">กดตัวเลขจำนวนแต้ม แล้วให้นักอ่านสแกน QR ด้วยมือถือของตัวเอง ระบบจะตัดแต้มให้อัตโนมัติทันทีที่สแกนสำเร็จ</p>
+    <h1>แผงควบคุมแอดมิน</h1>
+    <p class="sub">ออก QR Code แลกรางวัล และดูรายงานสรุปแต้มของนักอ่านทั้งหมด</p>
     <div class="greeting" id="greetingText"></div>
   </header>
 
@@ -243,6 +286,30 @@
         </div>
       </div>
     </div>
+
+    <div class="admin-report-wrap">
+      <h2>📊 รายงานสรุปแต้มนักอ่าน</h2>
+      <p class="admin-report-desc">สรุปว่านักอ่านมีใครบ้าง ได้แต้มสะสมเท่าไร แลกรางวัลไปแล้วเท่าไร เรียงจากแต้มคงเหลือมากไปน้อย สามารถโหลดเป็นไฟล์ Excel เก็บไว้ได้</p>
+
+      <div class="admin-summary" id="adminSummary"></div>
+
+      <div class="admin-toolbar">
+        <button class="btn" id="adminExportBtn" type="button">📥 ดาวน์โหลดเป็น Excel</button>
+        <button class="btn secondary" id="adminRefreshBtn" type="button">🔄 รีเฟรชข้อมูล</button>
+      </div>
+
+      <div class="admin-table-wrap">
+        <h3>รายชื่อนักอ่านทั้งหมด (เรียงจากแต้มคงเหลือมากไปน้อย)</h3>
+        <table class="admin-table" id="adminUsersTable">
+          <tr><td class="admin-empty">กำลังโหลดข้อมูล...</td></tr>
+        </table>
+      </div>
+
+      <div class="admin-table-wrap">
+        <h3>ประวัติการแลกรางวัลทั้งหมด</h3>
+        <table class="admin-table" id="adminRedemptionsTable"></table>
+      </div>
+    </div>
   </div>
 
   <footer class="site-footer">
@@ -259,6 +326,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <!-- qrcodejs - สร้างภาพ QR Code -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<!-- SheetJS - ใช้สร้างไฟล์ .xlsx สำหรับปุ่ม "ส่งออกเป็น Excel" -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <script>
 /* ===================================================================
@@ -423,6 +492,7 @@ auth.onAuthStateChanged(async (user)=>{
     document.getElementById('adminApp').style.display = "block";
     document.getElementById('greetingText').innerHTML =
       `เข้าสู่ระบบในฐานะผู้ดูแลระบบ <strong>${currentUserName}</strong> <span class="logout-link" onclick="logoutUser()">ออกจากระบบ</span>`;
+    loadAdminDashboard();
   }catch(err){
     console.warn("auth state check error:", err);
     const errorEl = document.getElementById('loginError');
@@ -550,6 +620,187 @@ document.getElementById('adminGenerateQrBtn').addEventListener('click', async ()
 
   btn.disabled = false;
   btn.textContent = "สร้าง QR Code";
+});
+
+/* ===================================================================
+   รายงานสรุปแต้มนักอ่าน
+   โหลดผู้ใช้ทั้งหมดจาก collection "users" (ยกเว้นบัญชีที่ role: "admin"
+   เอง) พร้อมประวัติการแลกรางวัลของแต่ละคนจาก subcollection "redemptions"
+   แล้วคำนวณแต้มที่ได้รับสะสมทั้งหมด = แต้มคงเหลือ + แต้มที่ใช้แลกไปแล้ว
+   เรียงจากแต้มคงเหลือมากไปน้อย ต้องมี field role:"admin" ในบัญชีที่ล็อกอิน
+   อยู่ (เพิ่ม Firestore Security Rules ให้รองรับการอ่านข้าม user แล้ว)
+=================================================================== */
+let adminUsersData = [];
+let adminRedemptionsData = [];
+
+async function loadAdminDashboard(){
+  const usersTable = document.getElementById('adminUsersTable');
+  const redTable = document.getElementById('adminRedemptionsTable');
+  const summaryWrap = document.getElementById('adminSummary');
+
+  usersTable.innerHTML = `<tr><td class="admin-empty">กำลังโหลดข้อมูล...</td></tr>`;
+  redTable.innerHTML = "";
+  summaryWrap.innerHTML = "";
+
+  try{
+    const usersSnap = await db.collection('users').get();
+    const users = [];
+    const redemptions = [];
+
+    for(const docSnap of usersSnap.docs){
+      const d = docSnap.data();
+      if(d.role === "admin") continue; // ไม่นับบัญชีผู้ดูแลระบบเองในรายงาน
+
+      let redSnap;
+      try{
+        redSnap = await db.collection('users').doc(docSnap.id).collection('redemptions').orderBy('timestamp', 'desc').get();
+      }catch(e){
+        redSnap = { docs: [] };
+      }
+
+      const userRedemptions = redSnap.docs.map(rd=>{
+        const r = rd.data();
+        return {
+          rewardTitle: r.rewardTitle || "-",
+          cost: r.cost || 0,
+          timestamp: (r.timestamp && r.timestamp.toDate) ? r.timestamp.toDate() : null
+        };
+      });
+
+      const totalRedeemedPoints = userRedemptions.reduce((s, r)=> s + r.cost, 0);
+      const currentPoints = d.totalPoints || 0;
+      const totalEarnedPoints = currentPoints + totalRedeemedPoints;
+      const userName = d.name || "-";
+
+      users.push({
+        name: userName,
+        currentPoints,
+        totalEarnedPoints,
+        totalRedeemedPoints,
+        redeemCount: userRedemptions.length
+      });
+
+      userRedemptions.forEach(r=> redemptions.push({ userName, ...r }));
+    }
+
+    users.sort((a, b)=> b.currentPoints - a.currentPoints);
+    redemptions.sort((a, b)=> (b.timestamp || 0) - (a.timestamp || 0));
+
+    adminUsersData = users;
+    adminRedemptionsData = redemptions;
+
+    renderAdminSummary(users, redemptions);
+    renderAdminUsersTable(users);
+    renderAdminRedemptionsTable(redemptions);
+  }catch(err){
+    console.warn("loadAdminDashboard error:", err);
+    usersTable.innerHTML = `<tr><td class="admin-empty">ไม่สามารถโหลดข้อมูลได้ กรุณาตรวจสอบสิทธิ์การเข้าถึง Firestore (Security Rules) ของบัญชีผู้ดูแลระบบ</td></tr>`;
+  }
+}
+
+function renderAdminSummary(users, redemptions){
+  const totalUsers = users.length;
+  const totalCurrentPoints = users.reduce((s, u)=> s + u.currentPoints, 0);
+  const totalRedeemedPoints = users.reduce((s, u)=> s + u.totalRedeemedPoints, 0);
+  const totalEarnedPoints = users.reduce((s, u)=> s + u.totalEarnedPoints, 0);
+
+  document.getElementById('adminSummary').innerHTML = `
+    <div class="admin-stat"><span class="num">${totalUsers}</span><span class="lbl">นักอ่านทั้งหมด</span></div>
+    <div class="admin-stat"><span class="num">${totalEarnedPoints}</span><span class="lbl">แต้มที่ได้รับสะสมทั้งหมด</span></div>
+    <div class="admin-stat"><span class="num">${totalRedeemedPoints}</span><span class="lbl">แต้มที่ใช้แลกรางวัลไปแล้ว</span></div>
+    <div class="admin-stat"><span class="num">${totalCurrentPoints}</span><span class="lbl">แต้มคงเหลือรวม</span></div>
+    <div class="admin-stat"><span class="num">${redemptions.length}</span><span class="lbl">ครั้งที่แลกรางวัล</span></div>
+  `;
+}
+
+function renderAdminUsersTable(users){
+  const table = document.getElementById('adminUsersTable');
+  if(users.length === 0){
+    table.innerHTML = `<tr><td class="admin-empty">ยังไม่มีนักอ่านในระบบ</td></tr>`;
+    return;
+  }
+  const rows = users.map((u, i)=> `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${u.name}</td>
+      <td>${u.currentPoints}</td>
+      <td>${u.totalEarnedPoints}</td>
+      <td>${u.totalRedeemedPoints}</td>
+      <td>${u.redeemCount}</td>
+    </tr>
+  `).join('');
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>ลำดับ</th>
+        <th>ชื่อนักอ่าน</th>
+        <th>แต้มคงเหลือ</th>
+        <th>แต้มที่ได้รับสะสม</th>
+        <th>แต้มที่ใช้ไป</th>
+        <th>จำนวนครั้งที่แลก</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  `;
+}
+
+function renderAdminRedemptionsTable(redemptions){
+  const table = document.getElementById('adminRedemptionsTable');
+  if(redemptions.length === 0){
+    table.innerHTML = `<tr><td class="admin-empty">ยังไม่มีประวัติการแลกรางวัล</td></tr>`;
+    return;
+  }
+  const rows = redemptions.map(r=> `
+    <tr>
+      <td>${r.userName}</td>
+      <td>${r.rewardTitle}</td>
+      <td>${r.cost}</td>
+      <td>${r.timestamp ? r.timestamp.toLocaleString('th-TH', { dateStyle:'medium', timeStyle:'short' }) : "-"}</td>
+    </tr>
+  `).join('');
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>ชื่อนักอ่าน</th>
+        <th>รางวัลที่แลก</th>
+        <th>แต้มที่ใช้</th>
+        <th>วันเวลา</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  `;
+}
+
+document.getElementById('adminRefreshBtn').addEventListener('click', loadAdminDashboard);
+
+document.getElementById('adminExportBtn').addEventListener('click', ()=>{
+  if(typeof XLSX === "undefined"){
+    showToast("โหลดไลบรารี Excel ไม่สำเร็จ กรุณาลองใหม่");
+    return;
+  }
+  const usersSheetData = adminUsersData.map((u, i)=>({
+    "ลำดับ": i + 1,
+    "ชื่อนักอ่าน": u.name,
+    "แต้มคงเหลือ": u.currentPoints,
+    "แต้มที่ได้รับสะสม": u.totalEarnedPoints,
+    "แต้มที่ใช้ไป": u.totalRedeemedPoints,
+    "จำนวนครั้งที่แลก": u.redeemCount
+  }));
+  const redSheetData = adminRedemptionsData.map(r=>({
+    "ชื่อนักอ่าน": r.userName,
+    "รางวัลที่แลก": r.rewardTitle,
+    "แต้มที่ใช้": r.cost,
+    "วันเวลา": r.timestamp ? r.timestamp.toLocaleString('th-TH', { dateStyle:'medium', timeStyle:'short' }) : "-"
+  }));
+
+  const wb = XLSX.utils.book_new();
+  const wsUsers = XLSX.utils.json_to_sheet(usersSheetData);
+  const wsRed = XLSX.utils.json_to_sheet(redSheetData);
+  XLSX.utils.book_append_sheet(wb, wsUsers, "สรุปนักอ่าน");
+  XLSX.utils.book_append_sheet(wb, wsRed, "ประวัติการแลกรางวัล");
+
+  const dateStr = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `รายงานห้องสมุดนักอ่าน_${dateStr}.xlsx`);
 });
 </script>
 </body>
