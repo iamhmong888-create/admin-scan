@@ -318,14 +318,22 @@ async function doLogin(){
   const email = nameToEmail(name);
   try{
     try{
-      await auth.createUserWithEmailAndPassword(email, pass);
-      /* บัญชีนี้ยังไม่เคยมีมาก่อน - สร้างใหม่สำเร็จ (role check ด้านล่างจะ
-         ดีดออกเองถ้าบัญชีนี้ไม่มี role:"admin") */
+      const cred = await auth.createUserWithEmailAndPassword(email, pass);
+      /* บัญชีนี้ยังไม่เคยมีมาก่อน - สร้างใหม่สำเร็จ ต้องสร้าง "โปรไฟล์" ใน
+         Firestore ไว้ด้วย (เดิมลืมส่วนนี้ไป) ไม่งั้นจะไม่มี document ให้ครู
+         ไปเพิ่ม role:"admin" ทีหลังเลย - role ปล่อยว่างไว้ก่อนโดยตั้งใจ ต้องไป
+         เพิ่มเองผ่าน Firebase Console เพื่อความปลอดภัย ไม่ให้ใครก็ได้ที่เข้ามา
+         หน้านี้ตั้งตัวเองเป็นแอดมินได้ทันที */
+      await db.collection('users').doc(cred.user.uid).set({
+        name: name,
+        role: null,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge:true });
     }catch(err){
       if(err.code === 'auth/email-already-in-use'){
-        /* กรณีปกติ: มีบัญชีนี้อยู่แล้ว (เคยล็อกอินผ่าน index.html มาก่อน)
-           -> เข้าสู่ระบบด้วยรหัสผ่านที่กรอกจริง ๆ error ที่ได้จากตรงนี้
-           (wrong-password / invalid-credential) จะแม่นยำ ไม่กำกวมเหมือนเดิม */
+        /* กรณีปกติ: มีบัญชีนี้อยู่แล้ว -> เข้าสู่ระบบด้วยรหัสผ่านที่กรอกจริง ๆ
+           error ที่ได้จากตรงนี้ (wrong-password / invalid-credential) จะแม่นยำ
+           ไม่กำกวมเหมือนเดิม */
         await auth.signInWithEmailAndPassword(email, pass);
       } else {
         throw err;
@@ -336,7 +344,7 @@ async function doLogin(){
     console.warn("login error:", err);
     let msg = "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่";
     if(err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential'){
-      msg = "รหัสผ่านไม่ตรงกับบัญชีนี้ กรุณาตรวจสอบรหัสผ่าน (ต้องเป็นรหัสเดียวกับที่เคยใช้ล็อกอินหน้า index.html)";
+      msg = "รหัสผ่านไม่ตรงกับบัญชีนี้ กรุณาตรวจสอบรหัสผ่าน";
     } else if(err.code === 'auth/weak-password'){
       msg = "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
     }
@@ -369,10 +377,12 @@ auth.onAuthStateChanged(async (user)=>{
     const data = snap.exists ? snap.data() : null;
 
     if(!data || data.role !== "admin"){
-      /* บัญชีนี้ไม่ใช่แอดมิน (หรือยังไม่เคยล็อกอินในไฟล์ index.html เลยไม่มี
-         โปรไฟล์ใน Firestore) - ดีดออกจากระบบทันทีเพื่อความปลอดภัย */
+      /* บัญชีนี้ยังไม่มีสิทธิ์แอดมิน (ปกติสำหรับการสร้างบัญชีครั้งแรก - ต้องไป
+         เพิ่ม role:"admin" เองผ่าน Firebase Console ก่อนถึงจะเข้าได้ เพื่อกัน
+         ไม่ให้ใครก็ได้ที่เข้ามาหน้านี้ตั้งตัวเองเป็นแอดมิน) */
+      const shownName = (data && data.name) ? data.name : (user.email || "บัญชีนี้");
       const errorEl = document.getElementById('loginError');
-      errorEl.textContent = "บัญชีนี้ไม่มีสิทธิ์ผู้ดูแลระบบ กรุณาใช้บัญชีแอดมินที่ตั้งค่า role เป็น admin ไว้ใน Firestore";
+      errorEl.textContent = `บัญชี "${shownName}" ยังไม่มีสิทธิ์ผู้ดูแลระบบ - ไปที่ Firebase Console > Firestore > collection "users" หา document ที่มี field name = "${shownName}" แล้วเพิ่ม field role (ประเภท string) ค่า admin`;
       errorEl.style.display = "block";
       await auth.signOut();
       return;
