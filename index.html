@@ -317,11 +317,27 @@ async function doLogin(){
 
   try{
     const email = nameToEmail(name);
-    await auth.signInWithEmailAndPassword(email, pass);
+    try{
+      await auth.signInWithEmailAndPassword(email, pass);
+    }catch(err){
+      if(err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential'){
+        /* ยังไม่เคยมีบัญชีนี้เลย (ไม่ว่าจะยังไม่เคยล็อกอินผ่าน index.html มาก่อน
+           หรือพิมพ์ชื่อผิดจากที่เคยใช้) - สร้างบัญชีใหม่ให้เหมือนพฤติกรรมของ
+           index.html เพื่อไม่ให้งงว่าทำไมเข้าไม่ได้ แต่ถ้าบัญชีที่สร้างใหม่นี้ไม่มี
+           role:"admin" onAuthStateChanged ด้านล่างจะดีดออกอยู่ดี ปลอดภัย */
+        await auth.createUserWithEmailAndPassword(email, pass);
+      } else {
+        throw err;
+      }
+    }
     /* onAuthStateChanged ด้านล่างจะรับช่วงต่อเอง: เช็ค role และเปิดหน้า admin */
   }catch(err){
     console.warn("login error:", err);
-    errorEl.textContent = "เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบชื่อผู้ใช้และรหัสผ่าน";
+    let msg = "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่";
+    if(err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential'){
+      msg = "รหัสผ่านไม่ตรงกับบัญชีนี้ กรุณาตรวจสอบรหัสผ่าน (ต้องเป็นรหัสเดียวกับที่เคยใช้ล็อกอินหน้า index.html)";
+    }
+    errorEl.textContent = msg;
     errorEl.style.display = "block";
   }
 
